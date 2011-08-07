@@ -2,9 +2,12 @@ import serial
 import time
 
 class BlinkMSerial:
-    def __init__(self, port, ic2_address=0x09):
+    def __init__(self, port, ic2_address=0x09, 
+            calibration={ 'brightness':1, 'color':{'r':1, 'g':1, 'b':1 } }):
         self.address = ic2_address
         self.port = port
+        self.calibration = calibration
+
         try:
             self.ser = serial.Serial(port, 19200, timeout=1)
             print "connecting"
@@ -22,6 +25,12 @@ class BlinkMSerial:
         r = int('0x%s' % hex_rgb[0:2], 16)
         g = int('0x%s' % hex_rgb[2:4], 16)
         b = int('0x%s' % hex_rgb[4:6], 16)
+        return {'r':r, 'g':g, 'b':b}
+        
+    def _calibrate_rgb(self, r, g, b):
+        r = int(r * self.calibration['color']['r'] * self.calibration['brightness'])
+        g = int(g * self.calibration['color']['g'] * self.calibration['brightness'])
+        b = int(b * self.calibration['color']['b'] * self.calibration['brightness'])
         return {'r':r, 'g':g, 'b':b}
         
     def open(self):
@@ -55,20 +64,23 @@ class BlinkMSerial:
         self.send_command([ord('o'), 0x6f])
         
     def go_to_rgb(self, r, g, b):
+        calibrated = self._calibrate_rgb(r, g, b)
         self.stop_script()
-        self.send_command([ord('n'), r, g, b])        
+        self.send_command([ord('n'), calibrated['r'], calibrated['g'], calibrated['b']])        
         
     def fade_to_rgb(self, r, g, b):
+        calibrated = self._calibrate_rgb(r, g, b)
         self.stop_script()
-        self.send_command([ord('c'), r, g, b])
+        self.send_command([ord('c'), calibrated['r'], calibrated['g'], calibrated['b']])
         
     def fade_to_hsb(self, h, s, b):
         self.stop_script()
         self.send_command([ord('h'), h, s, b])
         
     def fade_random_rgb(self, r=0, g=0, b=0):
+        calibrated = self._calibrate_rgb(r, g, b)
         self.stop_script()
-        self.send_command([ord('C'), r, g, b])
+        self.send_command([ord('C'), calibrated['r'], calibrated['g'], calibrated['b']])
         
     def fade_random_hsb(self, h=0, s=0, b=0):
         self.stop_script()
